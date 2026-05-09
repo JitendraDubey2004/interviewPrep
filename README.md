@@ -1,4 +1,4 @@
-# Interview AI
+# interviewPrep AI
 
 An AI-powered interview platform that allows users to conduct interactive interviews with AI assistance, including resume parsing and personalized question generation.
 
