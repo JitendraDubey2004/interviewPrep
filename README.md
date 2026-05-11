@@ -126,5 +126,5 @@ interview-ai-yt-main-main/
 
 ## License
 
-This project is licensed under the ISC License.</content>
-<parameter name="filePath">c:\Users\ASUS\Downloads\interview-ai-yt-main-main\interview-ai-yt-main-main\README.md
+This project is licensed under the ISC License.
+
