@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../style/interview.scss";
 import { useInterview } from "../hooks/useInterview.js";
 import { useParams, useNavigate } from "react-router";
+import STARCoaching from "../components/STARCoaching.jsx";
 
 const NAV_ITEMS = [
   {
@@ -59,6 +60,26 @@ const NAV_ITEMS = [
         strokeLinejoin="round"
       >
         <polygon points="3 11 22 2 13 21 11 13 3 11" />
+      </svg>
+    ),
+  },
+  {
+    id: "star",
+    label: "STAR Coaching",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="8" r="7" />
+        <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
       </svg>
     ),
   },
@@ -352,6 +373,15 @@ const Interview = () => {
 
           <div className="resume-download">
             <button
+              onClick={() => navigate(`/interview/${interviewId}/live`)}
+              className="button primary-button"
+              style={{ background: '#4CAF50', borderColor: '#4CAF50' }}
+            >
+              <svg height="0.85rem" style={{ marginRight: "0.5rem" }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Start Live Interview
+            </button>
+
+            <button
               onClick={handleDownloadPdf}
               disabled={downloadingPdf || downloadingLatex}
               className="button primary-button"
@@ -445,6 +475,10 @@ const Interview = () => {
                 ))}
               </div>
             </section>
+          )}
+
+          {activeNav === "star" && (
+            <STARCoaching />
           )}
         </main>
 

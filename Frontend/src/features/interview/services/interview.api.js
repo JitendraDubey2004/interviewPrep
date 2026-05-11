@@ -12,11 +12,13 @@ export const generateInterviewReport = async ({
   jobDescription,
   selfDescription,
   resumeFile,
+  targetCompany,
 }) => {
   const formData = new FormData();
   formData.append("jobDescription", jobDescription);
   formData.append("selfDescription", selfDescription);
-  formData.append("resume", resumeFile);
+  if (resumeFile) formData.append("resume", resumeFile);
+  if (targetCompany) formData.append("targetCompany", targetCompany);
 
   const response = await api.post("/api/interview/", formData, {
     headers: {
@@ -24,6 +26,14 @@ export const generateInterviewReport = async ({
     },
   });
 
+  return response.data;
+};
+
+/**
+ * @description Scrape LinkedIn profile data.
+ */
+export const scrapeLinkedIn = async (url) => {
+  const response = await api.post("/api/interview/linkedin", { url });
   return response.data;
 };
 
@@ -130,4 +140,48 @@ export const generateResumeLatex = async ({
 
   a.remove();
   URL.revokeObjectURL(url);
+};
+
+/**
+ * @description Start a new live interview session.
+ */
+export const startInterviewSession = async (interviewReportId) => {
+  const response = await api.post(
+    `/api/interview/${interviewReportId}/session/start`,
+  );
+  return response.data;
+};
+
+/**
+ * @description Send a chat message to the AI interviewer.
+ */
+export const sendInterviewChatMessage = async (sessionId, message) => {
+  const response = await api.post(`/api/interview/session/${sessionId}/chat`, {
+    message,
+  });
+  return response.data;
+};
+
+/**
+ * @description End the interview session and trigger evaluation.
+ */
+export const endInterviewSession = async (sessionId) => {
+  const response = await api.post(`/api/interview/session/${sessionId}/end`);
+  return response.data;
+};
+
+/**
+ * @description Get a specific interview session including its evaluation.
+ */
+export const getInterviewSessionById = async (sessionId) => {
+  const response = await api.get(`/api/interview/session/${sessionId}`);
+  return response.data;
+};
+
+/**
+ * @description Get STAR method coaching feedback.
+ */
+export const getStarCoaching = async (data) => {
+  const response = await api.post("/api/interview/star-coach", data);
+  return response.data;
 };

@@ -559,3 +559,71 @@ $font-stack:     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Robot
     grid-template-columns: 1fr;
   }
 }
+
+// ── New Feature Enhancements ────────────────────────────────────────────────
+.input-group {
+  margin-bottom: 1rem;
+  
+  .section-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.4rem;
+  }
+}
+
+.panel__input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s;
+  background-color: #fcfcfd;
+
+  &:focus {
+    border-color: #4f46e5;
+  }
+}
+
+.linkedin-section {
+  margin-bottom: 0.5rem;
+
+  .linkedin-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+    input {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      outline: none;
+      background-color: #fcfcfd;
+
+      &:focus {
+        border-color: #0a66c2;
+      }
+    }
+
+    button {
+      background: #0a66c2;
+      color: white;
+      border: none;
+      padding: 0 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #004182;
+      }
+    }
+  }
+}

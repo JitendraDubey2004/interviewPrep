@@ -4,6 +4,12 @@ import {
   getInterviewReportById,
   generateResumePdf,
   generateResumeLatex,
+  startInterviewSession,
+  sendInterviewChatMessage,
+  endInterviewSession,
+  getInterviewSessionById,
+  scrapeLinkedIn,
+  getStarCoaching,
 } from "../services/interview.api";
 
 import { useContext, useEffect } from "react";
@@ -18,8 +24,16 @@ export const useInterview = () => {
     throw new Error("useInterview must be used within an InterviewProvider");
   }
 
-  const { loading, setLoading, report, setReport, reports, setReports } =
-    context;
+  const {
+    loading,
+    setLoading,
+    report,
+    setReport,
+    reports,
+    setReports,
+    session, // ← new
+    setSession, // ← new
+  } = context;
 
   // =========================================
   // HANDLE API ERRORS
@@ -62,6 +76,7 @@ export const useInterview = () => {
     jobDescription,
     selfDescription,
     resumeFile,
+    targetCompany,
   }) => {
     setLoading(true);
 
@@ -70,6 +85,7 @@ export const useInterview = () => {
         jobDescription,
         selfDescription,
         resumeFile,
+        targetCompany,
       });
 
       setReport(response.interviewReport);
@@ -144,10 +160,7 @@ export const useInterview = () => {
   // Download Resume PDF
   // =========================
 
-  const getResumePdf = async (
-    interviewReportId,
-    templateId = 1,
-  ) => {
+  const getResumePdf = async (interviewReportId, templateId = 1) => {
     setLoading(true);
 
     try {
@@ -155,27 +168,6 @@ export const useInterview = () => {
         interviewReportId,
         templateId,
       });
-
-      const url = window.URL.createObjectURL(
-        new Blob([response], {
-          type: "application/pdf",
-        }),
-      );
-
-      const link = document.createElement("a");
-
-      link.href = url;
-
-      link.setAttribute(
-        "download",
-        `resume_${interviewReportId}_template${templateId}.pdf`,
-      );
-
-      document.body.appendChild(link);
-
-      link.click();
-
-      link.remove();
 
       return {
         success: true,
@@ -194,10 +186,7 @@ export const useInterview = () => {
   // Download Resume LaTeX
   // =========================
 
-  const getResumeLatex = async (
-    interviewReportId,
-    templateId = 1,
-  ) => {
+  const getResumeLatex = async (interviewReportId, templateId = 1) => {
     setLoading(true);
 
     try {
@@ -220,6 +209,82 @@ export const useInterview = () => {
   };
 
   // =========================
+  // Live Interview Session
+  // =========================
+
+  const startSession = async (interviewReportId) => {
+    setLoading(true);
+    try {
+      const response = await startInterviewSession(interviewReportId);
+      setSession(response.session);
+      return { success: true, data: response.session };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendChatMessage = async (sessionId, message) => {
+    try {
+      const response = await sendInterviewChatMessage(sessionId, message);
+      setSession(response.session);
+      return { success: true, data: response.aiResponse };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    }
+  };
+
+  const endSession = async (sessionId) => {
+    setLoading(true);
+    try {
+      const response = await endInterviewSession(sessionId);
+      return { success: true, data: response.evaluation };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSessionById = async (sessionId) => {
+    setLoading(true);
+    try {
+      const response = await getInterviewSessionById(sessionId);
+      setSession(response.session);
+      return { success: true, data: response.session };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importLinkedIn = async (url) => {
+    setLoading(true);
+    try {
+      const response = await scrapeLinkedIn(url);
+      return { success: true, data: response.profileText };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCoaching = async (data) => {
+    setLoading(true);
+    try {
+      const response = await getStarCoaching(data);
+      return { success: true, data: response.feedback };
+    } catch (error) {
+      return { success: false, message: getErrorMessage(error) };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================
   // Auto Fetch
   // =========================
 
@@ -235,10 +300,17 @@ export const useInterview = () => {
     loading,
     report,
     reports,
+    session,
     generateReport,
     getReportById,
     getReports,
     getResumePdf,
     getResumeLatex,
+    startSession,
+    sendChatMessage,
+    endSession,
+    getSessionById,
+    importLinkedIn,
+    getCoaching,
   };
 };

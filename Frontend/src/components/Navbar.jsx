@@ -8,7 +8,7 @@ const Navbar = ({ user, onLogout }) => {
       <div className="navbar__left">
         <div className="navbar__logo">
           <span className="logo-dot" />
-          InterviewOS
+          interviewPrep AI
         </div>
       </div>
 

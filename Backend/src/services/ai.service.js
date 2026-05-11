@@ -52,6 +52,19 @@ const interviewReportSchema = z.object({
   title: z.string(),
 });
 
+const interviewEvaluationSchema = z.object({
+  overallScore: z.number(),
+  communicationScore: z.number(),
+  technicalScore: z.number(),
+  starAlignment: z.object({
+    score: z.number(),
+    feedback: z.string(),
+  }),
+  strengths: z.array(z.string()),
+  improvements: z.array(z.string()),
+  detailedFeedback: z.string(),
+});
+
 // ======================================================
 // ATS Resume Schema
 // ======================================================
@@ -275,10 +288,12 @@ async function generateInterviewReport({
   resume,
   selfDescription,
   jobDescription,
+  targetCompany = "General",
 }) {
   const prompt = `
-Generate an interview report.
+Generate a comprehensive interview report for a candidate applying to ${targetCompany}.
 
+Target Company: ${targetCompany}
 Resume:
 ${resume}
 
@@ -287,6 +302,11 @@ ${selfDescription}
 
 Job Description:
 ${jobDescription}
+
+Instructions:
+1. Analyze the job description specifically through the lens of ${targetCompany}'s likely interview style and values.
+2. If ${targetCompany} is a major tech company (e.g., Google, Amazon), tailor the technical and behavioral questions to their known formats.
+3. Provide a match score and actionable preparation plan.
 `;
 
   const response = await ai.models.generateContent({
@@ -408,7 +428,7 @@ ${jobDescription}
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.0-flash",
 
     contents: prompt,
 
@@ -446,8 +466,167 @@ ${jobDescription}
   };
 }
 
+// ======================================================
+// LIVE MOCK INTERVIEW CHAT
+// ======================================================
+
+async function startInterviewChatSession({
+  resume,
+  selfDescription,
+  jobDescription,
+}) {
+  const prompt = `
+You are a professional hiring manager conducting a mock interview.
+Your goal is to test the candidate's fit for the job based on their resume and the job description.
+
+Candidate Resume:
+${resume}
+
+Candidate Self Description:
+${selfDescription}
+
+Target Job Description:
+${jobDescription}
+
+Instructions:
+1. Start by introducing yourself and asking the first interview question.
+2. Be professional, encouraging, but rigorous.
+3. Keep your responses concise and focused on the interview.
+4. You will conduct this interview step-by-step.
+
+Wait for the candidate's response after your first question.
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+  });
+
+  return response.text;
+}
+
+async function processInterviewChatMessage({
+  history,
+  newMessage,
+  resume,
+  jobDescription,
+}) {
+  const systemInstruction = `You are a professional hiring manager conducting a mock interview. 
+Resume Context: ${resume}
+Job Description Context: ${jobDescription}
+
+Coding Support:
+- If the candidate provides code or you ask a coding question, evaluate the code for correctness, time complexity (Big O), and space complexity.
+- You can provide code snippets or challenges to the candidate.
+- Be rigorous but constructive.
+
+Conduct the interview naturally. Provide feedback if asked, but stay in character.`;
+
+  const contents = history.map((msg) => ({
+    role: msg.role === "model" ? "model" : "user",
+    parts: [{ text: msg.text }],
+  }));
+
+  contents.push({ role: "user", parts: [{ text: newMessage }] });
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    systemInstruction,
+    contents,
+  });
+
+  return response.text;
+}
+
+async function evaluateInterviewSession({
+  history,
+  resume,
+  jobDescription,
+}) {
+  const prompt = `
+You are a senior recruiter evaluating a mock interview session.
+Analyze the following interview history and provide a detailed evaluation.
+
+Resume Context:
+${resume}
+
+Job Description Context:
+${jobDescription}
+
+Interview History:
+${history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}
+
+Instructions:
+1. Provide an overall score (0-100).
+2. Evaluate communication clarity and technical correctness.
+3. Check for STAR (Situation, Task, Action, Result) method alignment in the candidate's behavioral answers.
+4. List specific strengths and areas for improvement.
+5. Provide a constructive detailed feedback summary.
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: zodToJsonSchema(interviewEvaluationSchema),
+    },
+  });
+
+  return JSON.parse(response.text);
+}
+
+async function getStarCoachingFeedback({
+  situation,
+  task,
+  action,
+  result,
+}) {
+  const prompt = `
+You are an interview coach helping a candidate structure their behavioral answer using the STAR method.
+
+Candidate Input:
+Situation: ${situation}
+Task: ${task}
+Action: ${action}
+Result: ${result}
+
+Instructions:
+1. Evaluate each part of the STAR method.
+2. Provide specific, concise feedback on how to improve each section.
+3. Give an overall "STAR Readiness" score (0-100).
+4. Suggest a refined version of their answer.
+`;
+
+  const starFeedbackSchema = z.object({
+    score: z.number(),
+    feedback: z.object({
+      situation: z.string(),
+      task: z.string(),
+      action: z.string(),
+      result: z.string(),
+    }),
+    refinedAnswer: z.string(),
+  });
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: zodToJsonSchema(starFeedbackSchema),
+    },
+  });
+
+  return JSON.parse(response.text);
+}
+
 module.exports = {
   generateInterviewReport,
   generateResumePdf,
   generateResumeLatex,
+  startInterviewChatSession,
+  processInterviewChatMessage,
+  evaluateInterviewSession,
+  getStarCoachingFeedback,
 };

@@ -2,9 +2,189 @@ const pdfParse = require("pdf-parse");
 const {
   generateInterviewReport,
   generateResumePdf,
-  generateResumeLatex, // ← new
+  generateResumeLatex,
+  startInterviewChatSession, // ← new
+  processInterviewChatMessage, // ← new
+  evaluateInterviewSession,
+  getStarCoachingFeedback,
 } = require("../services/ai.service");
 const interviewReportModel = require("../models/interviewReport.model");
+const interviewSessionModel = require("../models/interviewSession.model"); // ← new
+
+// ─────────────────────────────────────────────────────────────
+// Live Interview Session Controllers
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * @description Start a new live interview session based on a report.
+ */
+async function startInterviewSessionController(req, res) {
+  const { interviewReportId } = req.params;
+
+  const report = await interviewReportModel.findOne({
+    _id: interviewReportId,
+    user: req.user.id,
+  });
+
+  if (!report) {
+    return res.status(404).json({ message: "Interview report not found." });
+  }
+
+  // Check if active session already exists
+  let session = await interviewSessionModel.findOne({
+    interviewReport: interviewReportId,
+    user: req.user.id,
+    status: "active",
+  });
+
+  if (session) {
+    return res.status(200).json({
+      message: "Resuming existing active session.",
+      session,
+    });
+  }
+
+  // Start new chat with AI
+  const firstQuestion = await startInterviewChatSession({
+    resume: report.resume,
+    selfDescription: report.selfDescription,
+    jobDescription: report.jobDescription,
+  });
+
+  // Create session in DB
+  session = await interviewSessionModel.create({
+    user: req.user.id,
+    interviewReport: interviewReportId,
+    history: [{ role: "model", text: firstQuestion }],
+    status: "active",
+  });
+
+  res.status(201).json({
+    message: "Interview session started.",
+    session,
+  });
+}
+
+/**
+ * @description Process a user message and get AI response.
+ */
+async function processInterviewChatController(req, res) {
+  const { sessionId } = req.params;
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ message: "Message is required." });
+  }
+
+  const session = await interviewSessionModel.findOne({
+    _id: sessionId,
+    user: req.user.id,
+    status: "active",
+  }).populate('interviewReport');
+
+  if (!session) {
+    return res.status(404).json({ message: "Active interview session not found." });
+  }
+
+  // Process with AI
+  const aiResponse = await processInterviewChatMessage({
+    history: session.history,
+    newMessage: message,
+    resume: session.interviewReport.resume,
+    jobDescription: session.interviewReport.jobDescription,
+  });
+
+  // Update session history
+  session.history.push({ role: "user", text: message });
+  session.history.push({ role: "model", text: aiResponse });
+  await session.save();
+
+  res.status(200).json({
+    message: "AI response received.",
+    aiResponse,
+    session,
+  });
+}
+
+/**
+ * @description End interview session and generate evaluation.
+ */
+async function endInterviewSessionController(req, res) {
+  const { sessionId } = req.params;
+
+  const session = await interviewSessionModel.findOne({
+    _id: sessionId,
+    user: req.user.id,
+  }).populate('interviewReport');
+
+  if (!session) {
+    return res.status(404).json({ message: "Interview session not found." });
+  }
+
+  if (session.status === 'completed' && session.evaluation) {
+    return res.status(200).json({
+      message: "Session already completed.",
+      evaluation: session.evaluation,
+    });
+  }
+
+  // Generate evaluation with AI
+  const evaluation = await evaluateInterviewSession({
+    history: session.history,
+    resume: session.interviewReport.resume,
+    jobDescription: session.interviewReport.jobDescription,
+  });
+
+  // Update session
+  session.status = 'completed';
+  session.evaluation = evaluation;
+  await session.save();
+
+  res.status(200).json({
+    message: "Interview session completed and evaluated.",
+    evaluation,
+  });
+}
+
+/**
+ * @description Get single interview session by ID.
+ */
+async function getInterviewSessionByIdController(req, res) {
+  const { sessionId } = req.params;
+
+  const session = await interviewSessionModel.findOne({
+    _id: sessionId,
+    user: req.user.id,
+  }).populate('interviewReport');
+
+  if (!session) {
+    return res.status(404).json({ message: "Interview session not found." });
+  }
+
+  res.status(200).json({
+    message: "Interview session fetched successfully.",
+    session,
+  });
+}
+
+/**
+ * @description Get coaching feedback for STAR method.
+ */
+async function getStarCoachingController(req, res) {
+  const { situation, task, action, result } = req.body;
+
+  const feedback = await getStarCoachingFeedback({
+    situation,
+    task,
+    action,
+    result,
+  });
+
+  res.status(200).json({
+    message: "STAR coaching feedback generated.",
+    feedback,
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // Existing controllers (unchanged)
@@ -19,12 +199,13 @@ async function generateInterViewReportController(req, res) {
     Uint8Array.from(req.file.buffer),
   ).getText();
 
-  const { selfDescription, jobDescription } = req.body;
+  const { selfDescription, jobDescription, targetCompany } = req.body;
 
   const interViewReportByAi = await generateInterviewReport({
     resume: resumeContent.text,
     selfDescription,
     jobDescription,
+    targetCompany,
   });
 
   const interviewReport = await interviewReportModel.create({
@@ -32,6 +213,7 @@ async function generateInterViewReportController(req, res) {
     resume: resumeContent.text,
     selfDescription,
     jobDescription,
+    targetCompany: targetCompany || "General",
     ...interViewReportByAi,
   });
 
@@ -220,5 +402,10 @@ module.exports = {
   getInterviewReportByIdController,
   getAllInterviewReportsController,
   generateResumePdfController,
-  generateResumeLatexController, // ← new
+  generateResumeLatexController,
+  startInterviewSessionController,
+  processInterviewChatController,
+  endInterviewSessionController,
+  getInterviewSessionByIdController,
+  getStarCoachingController,
 };

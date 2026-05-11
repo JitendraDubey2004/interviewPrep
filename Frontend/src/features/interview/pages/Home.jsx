@@ -12,11 +12,15 @@ import Navbar from "../../../components/Navbar.jsx";
 import { getMe, logout } from "../../auth/services/auth.api.js";
 
 const Home = () => {
-  const { loading, generateReport, reports } = useInterview();
+  const { loading, generateReport, reports, importLinkedIn } = useInterview();
 
   const [jobDescription, setJobDescription] = useState("");
 
   const [selfDescription, setSelfDescription] = useState("");
+
+  const [targetCompany, setTargetCompany] = useState("");
+
+  const [linkedInUrl, setLinkedInUrl] = useState("");
 
   const [resumeName, setResumeName] = useState("");
 
@@ -68,6 +72,7 @@ const Home = () => {
       jobDescription,
       selfDescription,
       resumeFile,
+      targetCompany,
     });
 
     // If API failed
@@ -89,6 +94,21 @@ const Home = () => {
 
     if (file) {
       setResumeName(file.name);
+    }
+  };
+
+  const handleLinkedInImport = async () => {
+    if (!linkedInUrl.includes("linkedin.com/in/")) {
+      alert("Please enter a valid LinkedIn profile URL");
+      return;
+    }
+
+    const result = await importLinkedIn(linkedInUrl);
+    if (result.success) {
+      setSelfDescription(result.data);
+      alert("LinkedIn profile data imported into Self Description!");
+    } else {
+      alert(result.message);
     }
   };
 
@@ -163,19 +183,33 @@ const Home = () => {
                   </svg>
                 </span>
 
-                <h2>Target Job Description</h2>
+                <h2>Target Job & Company</h2>
 
                 <span className="badge badge--required">Required</span>
               </div>
 
-              <textarea
-                onChange={(e) => {
-                  setJobDescription(e.target.value);
-                }}
-                className="panel__textarea"
-                placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
-                maxLength={5000}
-              />
+              <div className="input-group">
+                <label className="section-label">Target Company (Optional)</label>
+                <input 
+                  type="text"
+                  className="panel__input"
+                  placeholder="e.g. Google, Amazon, or 'Early Stage Startup'"
+                  value={targetCompany}
+                  onChange={(e) => setTargetCompany(e.target.value)}
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="section-label">Job Description</label>
+                <textarea
+                  onChange={(e) => {
+                    setJobDescription(e.target.value);
+                  }}
+                  className="panel__textarea"
+                  placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
+                  maxLength={5000}
+                />
+              </div>
 
               <div className="char-counter">
                 {jobDescription.length} / 5000 chars
@@ -209,6 +243,24 @@ const Home = () => {
                 </span>
 
                 <h2>Your Profile</h2>
+              </div>
+
+              {/* LINKEDIN IMPORT */}
+              <div className="linkedin-section">
+                <label className="section-label">LinkedIn Profile Import</label>
+                <div className="linkedin-input">
+                  <input 
+                    type="text" 
+                    placeholder="https://linkedin.com/in/username"
+                    value={linkedInUrl}
+                    onChange={(e) => setLinkedInUrl(e.target.value)}
+                  />
+                  <button onClick={handleLinkedInImport}>Import</button>
+                </div>
+              </div>
+
+              <div className="or-divider">
+                <span>OR</span>
               </div>
 
               {/* UPLOAD */}
@@ -277,6 +329,7 @@ const Home = () => {
                   onChange={(e) => {
                     setSelfDescription(e.target.value);
                   }}
+                  value={selfDescription}
                   id="selfDescription"
                   name="selfDescription"
                   className="panel__textarea panel__textarea--short"
